@@ -14,10 +14,15 @@ auto main() -> int {
 	auto res = _mm256_add_epi32(val256, val256_2);
 	auto res2 = SIMD::add<i32>(val256, val256_2);
 
+	auto res3 = _mm256_sub_epi32(val256, val256_2);
+	auto res4 = SIMD::subtract<i32>(val256, val256_2);
+
 	SIMD::print256<i32>(val256);
 	SIMD::print256<i32>(val256_2);
 	SIMD::print256<i32>(res);
 	SIMD::print256<i32>(res2);
+	SIMD::print256<i32>(res3);
+	SIMD::print256<i32>(res4);
 
 	return 0;
 }

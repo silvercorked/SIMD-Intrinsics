@@ -1,5 +1,7 @@
 #pragma once
 
+// https://learn.microsoft.com/en-us/cpp/intrinsics/cpuid-cpuidex?view=msvc-170
+
 #include <iostream>
 #include <vector>
 #include <bitset>

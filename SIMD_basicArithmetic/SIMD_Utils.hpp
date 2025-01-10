@@ -301,6 +301,82 @@ namespace SIMD {
 		}
 	}
 
+	template <typename In, typename Out> requires (SIMDInOut_Type<In, Out>)
+		auto subtract(Out a, Out b, bool preferSaturation = false) -> Out {
+		if constexpr (std::same_as<Out, __m128i>) {
+			if constexpr (std::same_as<In, u8>) {
+				return _mm_subs_epu8(a, b);
+			}
+			else if constexpr (std::same_as<In, i8>) {
+				if (preferSaturation) {
+					return _mm_subs_epi8(a, b);
+				}
+				else {
+					return _mm_sub_epi8(a, b);
+				}
+			}
+			else if constexpr (std::same_as<In, u16>) {
+				return _mm_subs_epu16(a, b);
+			}
+			else if constexpr (std::same_as<In, i16>) {
+				if (preferSaturation) {
+					return _mm_subs_epi16(a, b);
+				}
+				else {
+					return _mm_sub_epi16(a, b);
+				}
+			}
+			else if constexpr (std::same_as<In, i32>) {
+				return _mm_sub_epi32(a, b);
+			}
+			else if constexpr (std::same_as<In, i64>) {
+				return _mm_sub_epi64(a, b);
+			}
+		}
+		else if constexpr (std::same_as<Out, __m128> && std::same_as<In, f32>) {
+			return _mm_sub_ps(a, b);
+		}
+		else if constexpr (std::same_as<Out, __m128d> && std::same_as<In, f64>) {
+			return _mm_sub_pd(a, b);
+		}
+		else if constexpr (std::same_as<Out, __m256i>) {
+			if constexpr (std::same_as<In, u8>) {
+				return _mm256_subs_epu8(a, b);
+			}
+			else if constexpr (std::same_as<In, i8>) {
+				if (preferSaturation) {
+					return _mm256_subs_epi8(a, b);
+				}
+				else {
+					return _mm256_sub_epi8(a, b);
+				}
+			}
+			else if constexpr (std::same_as<In, u16>) {
+				return _mm256_subs_epu16(a, b);
+			}
+			else if constexpr (std::same_as<In, i16>) {
+				if (preferSaturation) {
+					return _mm256_subs_epi16(a, b);
+				}
+				else {
+					return _mm256_sub_epi16(a, b);
+				}
+			}
+			else if constexpr (std::same_as<In, i32>) {
+				return _mm256_sub_epi32(a, b);
+			}
+			else if constexpr (std::same_as<In, i64>) {
+				return _mm256_sub_epi64(a, b);
+			}
+		}
+		else if constexpr (std::same_as<Out, __m256> && std::same_as<In, f32>) {
+			return _mm256_sub_ps(a, b);
+		}
+		else if constexpr (std::same_as<Out, __m256d> && std::same_as<In, f64>) {
+			return _mm256_sub_pd(a, b);
+		}
+	}
+
 	template <typename In, typename Out> requires (SIMDInOut128_Type<In, Out>)
 		auto print128(Out toPrint) -> void {
 		const i32 size = sizeof(Out) / sizeof(In);
