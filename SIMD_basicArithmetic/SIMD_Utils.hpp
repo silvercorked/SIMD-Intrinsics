@@ -13,6 +13,9 @@
 #include <iostream>
 #include <format>
 #include <string>
+#include <cstring>
+#include <ranges>
+#include <array>
 
 namespace SIMD {
 	template <typename In, typename Out>
@@ -203,26 +206,54 @@ namespace SIMD {
 			In* a
 		) -> std::conditional_t<std::same_as<f32, In> || std::same_as<f64, In>, __m256, __m256i> {
 		if constexpr (std::same_as<f32, In>) {
-			return _mm256_load_ps((__m256*) a);
+			return _mm256_load_ps(a);
 		}
 		else if constexpr (std::same_as<f64, In>) {
-			return _mm256_load_pd((__m256*) a);
+			return _mm256_load_pd(a);
 		}
 		else if constexpr (
 			std::same_as<u32, In> || std::same_as<i32, In>
 			|| std::same_as<u64, In> || std::same_as<i64, In>
-			) {
+		) {
 			return _mm256_loadu_si256((__m256i*) a);
 		}
-		//else if constexpr (std::same_as<u32, In>) { // if AVX512F + AVX512VL
-		//	return _mm256_load_epu32(a);
-		//}
-		//else if constexpr (std::same_as<i32, In>) { // if AVX512F + AVX512VL
-		//	return _mm256_load_epi32(a);
-		//}
 		else {
 			std::runtime_error("Invalid Types");
 		}
+	}
+
+	/*
+		Slowers version of fill256 which can be used to avoid reading outside boundaries.
+		ie
+		std::array<i32, 100> vals3;
+		for (auto i = 0; i < 100; i++)
+			vals3[i] = i;
+
+		std::vector<__m256i> resFilling;
+		for (auto i = 0; i < 100; i += (256 / 32)) {
+			if (100 - i < 8) {
+				resFilling.push_back(SIMD::fill256<i32>(vals3.data() + i, 100 - i));
+			}
+			else {
+				resFilling.push_back(SIMD::fill256<i32>(vals3.data() + i));
+			}
+		}
+		avoids reading outside memory bound of list while also avoiding calling
+		_mm256_set_epi32, which would require size dependent arguments
+		ie 4 elements defined and 0 as fallback: _mm256_set_epi32(a, b, c, d, 0, 0, 0, 0)
+			// no real way to generalize this for N elements defined
+	*/
+	template <typename In> requires (SIMDIn_Type<In>)
+	auto fill256(
+		In* a, size_t size, In fallback = 0
+	) -> std::conditional_t<std::same_as<f32, In> || std::same_as<f64, In>, __m256, __m256i> {
+		constexpr const auto numElems = 256 / (sizeof(In) * 8);
+		std::array<In, numElems> vals;
+		std::memcpy(vals.data(), a, sizeof(In) * size);
+		for (auto i = size; i < numElems; i++) {
+			vals[i] = fallback;
+		}
+		return fill256<In>(vals.data());
 	}
 
 	template <typename In, typename Out> requires (SIMDInOut_Type<In, Out>)
@@ -298,6 +329,88 @@ namespace SIMD {
 		}
 		else if constexpr (std::same_as<Out, __m256d> && std::same_as<In, f64>) {
 			return _mm256_add_pd(a, b);
+		}
+	}
+
+	/*
+		for 128 bit types, normal add has better CPI (throughput) than masked versions. But for 256, they're the same.
+		Without setting mask or src during call, function behaves the same as add, but can be used to only do arithmetic
+		on sub set of elements within (ie, 16 can fit in 128, but if only 10 filled, can just do 10 with mask 0x0000 03FF
+		(ie 0b 0000 0000 0000 0000  0000 0011 1111 1111).
+	*/
+	template <typename In, typename Out> requires (SIMDInOut_Type<In, Out>)
+		auto maskAdd(Out a, Out b, u32 mask = std::numeric_limits<u32>::max(), Out src = a, bool preferSaturation = false) -> Out {
+		if constexpr (std::same_as<Out, __m128i>) {
+			if constexpr (std::same_as<In, u8>) {
+				return _mm_mask_adds_epu8(src, static_cast<u16>(mask), a, b);
+			}
+			else if constexpr (std::same_as<In, i8>) {
+				if (preferSaturation) {
+					return _mm_mask_adds_epi8(src, static_cast<u16>(mask), a, b);
+				}
+				else {
+					return _mm_mask_add_epi8(src, static_cast<u16>(mask), a, b);
+				}
+			}
+			else if constexpr (std::same_as<In, u16>) {
+				return _mm_mask_adds_epu16(src, static_cast<u8>(mask), a, b);
+			}
+			else if constexpr (std::same_as<In, i16>) {
+				if (preferSaturation) {
+					return _mm_mask_adds_epi16(src, static_cast<u8>(mask), a, b);
+				}
+				else {
+					return _mm_mask_add_epi16(src, static_cast<u8>(mask), a, b);
+				}
+			}
+			else if constexpr (std::same_as<In, i32>) {
+				return _mm_mask_add_epi32(src, static_cast<u8>(mask), a, b);
+			}
+			else if constexpr (std::same_as<In, i64>) {
+				return _mm_mask_add_epi64(src, static_cast<u8>(mask), a, b);
+			}
+		}
+		else if constexpr (std::same_as<Out, __m128> && std::same_as<In, f32>) {
+			return _mm_mask_add_ps(src, static_cast<u8>(mask), a, b);
+		}
+		else if constexpr (std::same_as<Out, __m128d> && std::same_as<In, f64>) {
+			return _mm_mask_add_pd(src, static_cast<u8>(mask), a, b);
+		}
+		else if constexpr (std::same_as<Out, __m256i>) {
+			if constexpr (std::same_as<In, u8>) {
+				return _mm256_mask_adds_epu8(src, mask, a, b);
+			}
+			else if constexpr (std::same_as<In, i8>) {
+				if (preferSaturation) {
+					return _mm256_mask_adds_epi8(src, mask, a, b);
+				}
+				else {
+					return _mm256_mask_add_epi8(src, mask, a, b);
+				}
+			}
+			else if constexpr (std::same_as<In, u16>) {
+				return _mm256_mask_adds_epu16(src, static_cast<u16>(mask), a, b);
+			}
+			else if constexpr (std::same_as<In, i16>) {
+				if (preferSaturation) {
+					return _mm256_mask_adds_epi16(src, static_cast<u16>(mask), a, b);
+				}
+				else {
+					return _mm256_mask_add_epi16(src, static_cast<u16>(mask), a, b);
+				}
+			}
+			else if constexpr (std::same_as<In, i32>) {
+				return _mm256_mask_add_epi32(src, static_cast<u8>(mask), a, b);
+			}
+			else if constexpr (std::same_as<In, i64>) {
+				return _mm256_mask_add_epi64(src, static_cast<u8>(mask), a, b);
+			}
+		}
+		else if constexpr (std::same_as<Out, __m256> && std::same_as<In, f32>) {
+			return _mm256_mask_add_ps(src, static_cast<u8>(mask), a, b);
+		}
+		else if constexpr (std::same_as<Out, __m256d> && std::same_as<In, f64>) {
+			return _mm256_mask_add_pd(src, static_cast<u8>(mask), a, b);
 		}
 	}
 
