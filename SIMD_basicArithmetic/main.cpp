@@ -32,12 +32,25 @@ auto main() -> int {
 	auto res3 = _mm256_sub_epi32(val256, val256_2);
 	auto res4 = SIMD::subtract<i32>(val256, val256_2);
 
+	//auto res5 = _mm256_mask_add_epi32(val256, 0x0F, val256, val256_2);
+	//auto res6 = SIMD::maskAdd<i32>(val256, val256_2, 0x0F);
+
+	//auto res7 = _mm256_mask_sub_epi32(val256, 0x0F, val256, val256_2);
+	//auto res8 = SIMD::maskSubtract<i32>(val256, val256_2, 0x0F);
+
+	// Can't test SIMD::mask__ functions. Don't have AVX 512. Curse you old CPU!!!
+
+	SIMD::print256<i32>(SIMD::fillZero<i32, 256>());
 	SIMD::print256<i32>(val256);
 	SIMD::print256<i32>(val256_2);
 	SIMD::print256<i32>(res);
 	SIMD::print256<i32>(res2);
 	SIMD::print256<i32>(res3);
 	SIMD::print256<i32>(res4);
+	//SIMD::print256<i32>(res5);
+	//SIMD::print256<i32>(res6);
+	//SIMD::print256<i32>(res7);
+	//SIMD::print256<i32>(res8);
 	std::cout << "printing resFilling:\n";
 	for (auto i = 0; i < resFilling.size(); i++) {
 		SIMD::print256<i32>(resFilling[i]);
