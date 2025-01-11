@@ -8,6 +8,8 @@
 	a great video with implicit_cast and pun_cast, both very useful and great tools
 */
 
+#define sizeofbits(x) (sizeof(x) * 8)
+
 template <typename T>
 constexpr
 T implicit_cast(typename std::type_identity<T>::type val) {

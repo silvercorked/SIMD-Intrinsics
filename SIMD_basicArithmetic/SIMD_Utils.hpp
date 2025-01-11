@@ -3,6 +3,7 @@
 #include "PrimitiveTypes.hpp"
 
 #include "PrimitiveConcepts.hpp"
+#include "UtilFunctions.hpp"
 
 #include <stdexcept>
 #include <concepts>
@@ -308,7 +309,7 @@ namespace SIMD {
 	auto fill256(
 		In* a, size_t size, In fallback = 0
 	) -> std::conditional_t<std::same_as<f32, In>, __m256, std::conditional_t<std::same_as<f64, In>, __m256d, __m256i>> {
-		constexpr const auto numElems = 256 / (sizeof(In) * 8);
+		constexpr const auto numElems = 256 / sizeofbits(In);
 		std::array<In, numElems> vals;
 		std::memcpy(vals.data(), a, sizeof(In) * size);
 		for (auto i = size; i < numElems; i++) {
@@ -337,7 +338,7 @@ namespace SIMD {
 	auto fillMask256(
 		In* a, u32 mask, In fallback = 0
 	) -> std::conditional_t<std::same_as<f32, In>, __m256, std::conditional_t<std::same_as<f64, In>, __m256d, __m256i>> {
-		constexpr const auto numElems = 256 / (sizeof(In) * 8);
+		constexpr const auto numElems = 256 / sizeofbits(In);
 		std::array<In, numElems> vals;
 		size_t offset = 0;
 		for (auto i = 0; i < numElems; i++) {
@@ -516,7 +517,7 @@ namespace SIMD {
 		const Out& a,
 		const Out& b,
 		u32 mask = std::numeric_limits<u32>::max(),
-		const Out& src = fillZero<In, sizeof(Out) * 8>(), // temporary allowed cause const ref. if just ref, not allowed
+		const Out& src = fillZero<In, sizeofbits(Out)>(), // temporary allowed cause const ref. if just ref, not allowed
 		bool preferSaturation = false
 	) -> Out {
 		if constexpr (std::same_as<Out, __m128i>) {
@@ -598,7 +599,7 @@ namespace SIMD {
 		const Out& a,
 		const Out& b,
 		u32 mask = std::numeric_limits<u32>::max(),
-		const Out& src = fillZero<In, sizeof(Out) * 8>(),
+		const Out& src = fillZero<In, sizeofbits(Out)>(),
 		bool preferSaturation = false
 	) -> Out {
 		if constexpr (std::same_as<Out, __m128i>) {
@@ -680,7 +681,7 @@ namespace SIMD {
 	template <typename In, typename Out> requires (SIMDInOut128_Type<In, Out>)
 	auto print128(const Out& toPrint) -> void {
 		const i32 size = sizeof(Out) / sizeof(In);
-		alignas(sizeof(In) * 8) In v[size];
+		In v[size];
 		if constexpr (std::same_as<In, f64>) {
 			_mm_storeu_pd((Out*)v, toPrint);
 		}
@@ -702,9 +703,9 @@ namespace SIMD {
 
 #ifdef __AVX__
 	template <typename In, typename Out> requires (SIMDInOut256_Type<In, Out>)
-		auto print256(const Out& toPrint) -> void {
+	auto print256(const Out& toPrint) -> void {
 		const i32 size = sizeof(Out) / sizeof(In);
-		alignas(sizeof(In) * 8) In v[size];
+		In v[size]; // non-u store commands (..._store_...) want a 32 bit alignment, but ..._storeu_ commands don't
 		if constexpr (std::same_as<In, f64>) {
 			_mm256_storeu_pd((Out*)v, toPrint);
 		}
