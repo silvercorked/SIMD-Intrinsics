@@ -8,9 +8,9 @@
 #include <ranges>
 
 auto main() -> int {
-	i32 vals[8] = { 5, 4, 3, 2, 1, 0, 50, 40 };
+	i32 vals[8] = { 10, 20, 30, 40, -10, -20, -30, -40 };
 	auto val256 = SIMD::fill256(vals);
-	i32 vals2[8] = { 20, 21, 22, 23, 24, 25, -25, 10 };
+	i32 vals2[8] = { 1, 2, 3, 4, 5, 6, 7, 8 };
 	auto val256_2 = SIMD::fill256(vals2);
 	std::array<i32, 100> vals3;
 	for (auto i = 0; i < 100; i++)
@@ -32,12 +32,13 @@ auto main() -> int {
 	auto res3 = _mm256_sub_epi32(val256, val256_2);
 	auto res4 = SIMD::subtract<i32>(val256, val256_2);
 
+	auto res5 = _mm256_mul_epi32(val256, val256_2);
+	auto res6 = SIMD::multiply<i32>(val256, val256_2);
+
 	//auto res5 = _mm256_mask_add_epi32(val256, 0x0F, val256, val256_2);
 	//auto res6 = SIMD::maskAdd<i32>(val256, val256_2, 0x0F);
-
 	//auto res7 = _mm256_mask_sub_epi32(val256, 0x0F, val256, val256_2);
 	//auto res8 = SIMD::maskSubtract<i32>(val256, val256_2, 0x0F);
-
 	// Can't test SIMD::mask__ functions. Don't have AVX 512. Curse you old CPU!!!
 
 	SIMD::print256<i32>(SIMD::fillZero<i32, 256>());
@@ -47,6 +48,8 @@ auto main() -> int {
 	SIMD::print256<i32>(res2);
 	SIMD::print256<i32>(res3);
 	SIMD::print256<i32>(res4);
+	SIMD::print256<i32>(res5);
+	SIMD::print256<i32>(res6);
 	//SIMD::print256<i32>(res5);
 	//SIMD::print256<i32>(res6);
 	//SIMD::print256<i32>(res7);

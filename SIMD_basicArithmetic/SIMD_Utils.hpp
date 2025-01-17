@@ -79,6 +79,12 @@ namespace SIMD {
 	concept SIMDOut_Type = std::same_as<__m128, Out> || std::same_as<__m128i, Out> || std::same_as<__m128d, Out>
 		|| std::same_as<__m256, Out> || std::same_as<__m256i, Out> || std::same_as<__m256d, Out>;
 
+	template <typename Out>
+	concept SIMDOut128_Type = std::same_as<__m128, Out> || std::same_as<__m128i, Out> || std::same_as<__m128d, Out>;
+
+	template <typename Out>
+	concept SIMDOut256_Type = std::same_as<__m256, Out> || std::same_as<__m256i, Out> || std::same_as<__m256d, Out>;
+
 #ifdef __AVX__
 	template <typename In, u32 Size> requires (SIMDIn_Type<In> && (Size == 128 || Size == 256))
 	auto fillZero() {
@@ -676,6 +682,82 @@ namespace SIMD {
 		}
 	}
 #endif // __AVX512F__
+
+#ifdef __AVX2__
+	// i thought _mm256_mul_epi32 took the lower 4 32's to multiply. it takes the lower 32 of each 64, meaning index 0, 2, 4, 6
+	// so i'd have to do this to multiply all of the numbers and get it into an array
+	/*
+	auto out1 = _mm256_mul_epi32(a, b);
+	std::array<i32, 8> AsSecond = {
+	pun_cast<i32*>(&a)[1], 0, pun_cast<i32*>(&a)[3], 0,
+	pun_cast<i32*>(&a)[5], 0, pun_cast<i32*>(&a)[7], 0
+	};
+	std::array<i32, 8> BsSecond = {
+	pun_cast<i32*>(&b)[1], 0, pun_cast<i32*>(&b)[3], 0,
+	pun_cast<i32*>(&b)[5], 0, pun_cast<i32*>(&b)[7], 0
+	};
+	auto tempA = fill256<i32>(AsSecond.data());
+	auto tempB = fill256<i32>(BsSecond.data());
+	auto out2 = _mm256_mul_epi32(tempA, tempB);
+	std::array<i64, 8> correctlyOrderedOutput = {
+	pun_cast<i64*>(&out1)[0], pun_cast<i64*>(&out2)[0], pun_cast<i64*>(&out1)[1], pun_cast<i64*>(&out2)[1],
+	pun_cast<i64*>(&out1)[2], pun_cast<i64*>(&out2)[2], pun_cast<i64*>(&out1)[3], pun_cast<i64*>(&out2)[3]
+	};
+	output[0] = fill256<i64>(correctlyOrderedOutput.data());
+	output[1] = fill256<i64>(correctlyOrderedOutput.data() + 4);
+	return output;
+	*/
+	// the above runs and works btw. how did this happen? How'd I get here?
+	// there weird thing here is, after all this, i'd bet $10 it'd be faster to just
+	// multiply them and cast them all manually.
+	// Every call to fill is a copy
+	// Every reordering array is a copy. Given 16 ints, this copies 4 + 4 + 8 + 8 + 8 + 4 + 4 ~= 40 times
+	// or i could do this
+	// i64 res = (i64)n * (i64)otherNum; 8 times.
+	// even if every cast results in a copy, it's only 16 copies.
+	// hell could even store em in a std::array for only 32 total copies.
+
+	// this method with ignore overflow because of the above
+	template <typename In, typename Out> requires (SIMDInOut_Type<In, Out>)
+	auto multiply(const Out& a, const Out& b)
+	-> Out {
+		if constexpr (std::same_as<Out, __m128i>) {
+			if constexpr (std::same_as<In, i16>) {
+				return _mm_mullo_epi16(a, b);
+			}
+			else if constexpr (std::same_as<In, i32>) {
+				return _mm_mullo_epi32(a, b);
+			}
+		}
+		else if constexpr (std::same_as<Out, __m128> && std::same_as<In, f32>) {
+			return _mm_mul_ps(a, b);
+		}
+		else if constexpr (std::same_as<Out, __m128d> && std::same_as<In, f64>) {
+			return _mm_mul_pd(a, b);
+		}
+		else if constexpr (std::same_as<Out, __m256i>) {
+			if constexpr (std::same_as<In, i16>) {
+				return _mm256_mullo_epi16(a, b);
+			}
+			else if constexpr (std::same_as<In, i32>) {
+				return _mm256_mullo_epi32(a, b);
+			}
+			else if constexpr (std::same_as<In, i64>) {
+				std::runtime_error("Invalid types");
+				// return _mm256_mullo_epi64(a, b); // AVX512
+			}
+		}
+		else if constexpr (std::same_as<Out, __m256> && std::same_as<In, f32>) {
+			return _mm256_mul_ps(a, b);
+		}
+		else if constexpr (std::same_as<Out, __m256d> && std::same_as<In, f64>) {
+			return _mm256_mul_pd(a, b);
+		}
+		else {
+			std::runtime_error("Invalid types");
+		}
+	}
+#endif // __AVX2__
 
 #ifdef __SSE2__
 	template <typename In, typename Out> requires (SIMDInOut128_Type<In, Out>)

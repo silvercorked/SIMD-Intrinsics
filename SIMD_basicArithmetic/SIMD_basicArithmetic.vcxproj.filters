@@ -33,6 +33,7 @@
     <ClInclude Include="CPUInfo.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Notes on SIMD API implementation choices.txt" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">

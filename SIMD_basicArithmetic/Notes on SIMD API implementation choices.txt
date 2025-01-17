@@ -1,0 +1,212 @@
+#pragma once
+
+/*
+	in the previous version, I carried __m128(i/d/_), __m256(i/d/_) and __m512(i/d/_) around by refering directly to their types.
+	however, the underlying types are defined as follows:
+	xmmintrin.h
+
+	typedef union __declspec(intrin_type) __declspec(align(16)) __m128 {
+	float               m128_f32[4];
+	unsigned __int64    m128_u64[2];
+	__int8              m128_i8[16];
+	__int16             m128_i16[8];
+	__int32             m128_i32[4];
+	__int64             m128_i64[2];
+	unsigned __int8     m128_u8[16];
+	unsigned __int16    m128_u16[8];
+	unsigned __int32    m128_u32[4];
+	} __m128;
+
+	emmintrin.h
+	typedef union __declspec(intrin_type) __declspec(align(16)) __m128i {
+	__int8              m128i_i8[16];
+	__int16             m128i_i16[8];
+	__int32             m128i_i32[4];
+	__int64             m128i_i64[2];
+	unsigned __int8     m128i_u8[16];
+	unsigned __int16    m128i_u16[8];
+	unsigned __int32    m128i_u32[4];
+	unsigned __int64    m128i_u64[2];
+	} __m128i;
+
+	typedef struct __declspec(intrin_type) __declspec(align(16)) __m128d {
+	double              m128d_f64[2];
+	} __m128d;
+
+	immintrin.h
+	typedef union __declspec(intrin_type) __declspec(align(32)) __m256 {
+	float m256_f32[8];
+	} __m256;
+
+	typedef struct __declspec(intrin_type) __declspec(align(32)) __m256d {
+	double m256d_f64[4];
+	} __m256d;
+
+	typedef union  __declspec(intrin_type) __declspec(align(32)) __m256i {
+	__int8              m256i_i8[32];
+	__int16             m256i_i16[16];
+	__int32             m256i_i32[8];
+	__int64             m256i_i64[4];
+	unsigned __int8     m256i_u8[32];
+	unsigned __int16    m256i_u16[16];
+	unsigned __int32    m256i_u32[8];
+	unsigned __int64    m256i_u64[4];
+	} __m256i;
+
+	These types are really just (aligned) c-style arrays. By interacting with these
+	as contiguous memory to be interpreted as a given type rather than a 
+	union, it may simplify the user interaction.
+	ex. 
+	BEFORE
+	std::vector<int> data {...};
+	steps:
+		convert to sequence of __m128 (but try to hide __m128 type cause it's annoying)
+		for loop and call function to start operating on data // if int isn't specified, UB 
+	AFTER
+	std::vector<int> data {...};
+	steps:
+		no need to convert. w/ a default vector, we have continugous memory. Just read it as a sequence of __m128 instead of ints
+		for loop and call function to start operating on data // if wrong type is possible to specify, error. might not need to specify
+
+	by using these as arrays, we can also avoid UB cases by misusing the hidden union type.
+	__m128i is a union, but can be filled several ways. Which way to utilize it must be tracked independent of the type
+	because it's used to call the appropriate function.
+
+	auto a = _mm_set_epi32() // treat a as __int32[8]
+	_mm_add_epi64(a, a); // treat a as __int64[4]
+	
+	Admittedly, this might not technically be UB because supposedly these intrinsics as replaced with individual instructions
+	or sequences of assembly. This means we might not technically be interacting with the union incorrectly in c++, but in assembly.
+	Regardless, __m128 masking the contained type requires SIMD::add<T> to take a type parameter for what the internals are.
+	With a std::span<const T&>, the internal type is carried with the data rather than masked.
+
+
+	...
+
+
+	The above sounds great, but it becomes a bit odd in some cases. In thinking about this, a question arrises,
+	why use the load or set commands?
+	If all loading and setting does is place things in contiguous memory,
+	then surely if it's already in contiguous memory, I can skip this step and just pass a pointer to __int32[4] straight to and _add_
+
+	for c-style arrays and std::array (and perhaps others), type punning via std::bit_cast allows this behavior and results in skipping
+	the load step.
+
+	Here's some output from compiler explorer using x86 msvc v19.latest w/ /std:c++20
+	#include <immintrin.h>
+	#include <array>
+	#include <type_traits>
+	#include <bit>
+
+	template <typename U, typename T>
+	constexpr
+	U pun_cast(const T& val) {
+		return std::bit_cast<U>(val);
+	}
+
+	void square(int num) {
+		std::array<int, 4> data;
+		for (auto i = 0 ; i < 4; i++)
+		data[i] = num;
+
+		auto a = _mm_load_si128((__m128i*)data.data());
+		auto b = _mm_set1_epi32(num);
+
+		auto c = _mm_add_epi32(pun_cast<__m128i>(data), b);
+		auto d = _mm_add_epi32(a, b);
+	}
+
+	... here's just the important bit from inside square
+	; some const stack offsets (i think)
+	_d$ = -176                                          ; size = 16
+	_c$ = -160                                          ; size = 16
+	$T1 = -144                                          ; size = 16
+	_a$ = -128                                          ; size = 16
+	$T2 = -112                                          ; size = 16
+	$T3 = -96                                         ; size = 16
+	$T4 = -80                                         ; size = 16
+	$T5 = -64                                         ; size = 16
+	_b$ = -48                                         ; size = 16
+	_i$6 = -24                                          ; size = 4
+	_data$ = -20                                            ; size = 16
+	__$ArrayPad$ = -4                                 ; size = 4
+	_num$ = 8                                         ; size = 4
+
+	; calculating auto a
+	lea     ecx, DWORD PTR _data$[ebp]
+	call    int * std::array<int,4>::data(void)        ; std::array<int,4>::data
+	movups  xmm0, XMMWORD PTR [eax]
+	movaps  XMMWORD PTR $T5[ebp], xmm0
+	movaps  xmm0, XMMWORD PTR $T5[ebp]
+	movaps  XMMWORD PTR _a$[ebp], xmm0
+
+	; calculating auto b
+	mov     eax, DWORD PTR _num$[ebx]
+	movd    xmm0, eax
+	pshufd  xmm0, xmm0, 0
+	movaps  XMMWORD PTR $T4[ebp], xmm0
+	movaps  xmm0, XMMWORD PTR $T4[ebp]
+	movaps  XMMWORD PTR _b$[ebp], xmm0
+
+	; calculating auto c
+	lea     ecx, DWORD PTR _data$[ebp]
+	push    ecx
+	call    __m128i pun_cast<__m128i,std::array<int,4> >(std::array<int,4> const &) ; pun_cast<__m128i,std::array<int,4> >
+	add     esp, 4
+	movaps  XMMWORD PTR $T3[ebp], xmm0
+	movaps  xmm0, XMMWORD PTR $T3[ebp]
+	paddd   xmm0, XMMWORD PTR _b$[ebp]
+	movaps  XMMWORD PTR $T2[ebp], xmm0
+	movaps  xmm0, XMMWORD PTR $T2[ebp]
+	movaps  XMMWORD PTR _c$[ebp], xmm0
+
+	; calculating auto d
+	movaps  xmm0, XMMWORD PTR _a$[ebp]
+	paddd   xmm0, XMMWORD PTR _b$[ebp]
+	movaps  XMMWORD PTR $T1[ebp], xmm0
+	movaps  xmm0, XMMWORD PTR $T1[ebp]
+	movaps  XMMWORD PTR _d$[ebp], xmm0
+
+	the last 5 commands of calculating c and d are effectively the same, but the extra instructions for c
+	involve calling the pun cast (potentially a noop from assembly pov, least in my mind).
+	If my x86 is good, which is questionable, the result from the bitcast fills xmm0, which is then used to set $T3.
+	$T2, like $T1, is a temporary used to transfer the output of the operating to the destination variable
+	(intersting side note, seemingly this implies that there could exist intrinsics w/ definitions like
+	void _mm_add_epi32(__m128* a, __m128 b) which could avoid 2 or more of the movaps calls after paddd).
+
+	So avoiding utilizing the __mXXX(i/d/_) types yields temporaries in resulting assembly by at least the MSVC compiler.
+	It's possible this is actually a case of potential optimization. I'm not very familiar with the restrictions or requirements
+	in x86 for using the SIMD commands or for placing content within the xmm_ registers.
+	According to https://learn.microsoft.com/en-us/cpp/assembler/masm/xmmword?view=msvc-170, XMMWORD simply means __m128
+	(this is despite the fact it's actually __m128i, implying this might just be a size utility).
+	Perhaps it would be possible for the compiler or intrinsic to produce:
+	
+	movaps  xmm1, _SIZE_ PTR input1_var_location$[ebp]
+	paddd   xmm0, _SIZE_ PTR input2_var_location$[ebp]
+	movaps  XMMWORD PTR output_var_location$[ebp], xmm0
+
+	Not sure if that is valid, but it seems like there's a lot of space for optimizations here, as is commonly the case with
+	resulting assembly. The fact the compiler does this:
+
+	paddd   xmm0, XMMWORD PTR _b$[ebp]
+	movaps  XMMWORD PTR $T1[ebp], xmm0
+	movaps  xmm0, XMMWORD PTR $T1[ebp]
+	movaps  XMMWORD PTR _d$[ebp], xmm0
+
+	is really odd. Why move the contents of xmm0 to $T1, then do a useless copy, then store is at the second location _d$?
+	Why not just store it at _d$ right away and skip 2 movaps instructions? idk, weird.
+	It seems to only like doing SIMD instructions with xmm_ registers and pointers _mXXX(d/i/_) variables. Perhaps some restriction
+	on those instructions.
+
+	Anyway, given the current result for using type punning + arrays over __m128, if more than 1 SIMD operation is to be done,
+	it would seemingly be most effective to use the __mXXX(d/i/_) types, despite them being ugly and kinda lame.
+
+	Maybe the best way to use this would be to construct operations and then a container type.
+	The container type could be fed by arrays or spans or ranges or whatever and pay a 1-time up-front copy cost to bring all their
+	stuff into _mXXX(d/i/_) format, which can be hidden inside the container type. Then operations can be changed either
+	termination in a reduction or a convertion (perhaps similar to std::ranges::to<Container_Type>(void)).
+
+	If only a simple operation needs to be done, type punning + arrays actually drops 1 instruction per argument (seemingly).
+	But in successive operations, it has to reload things into these temporaries. the _mXXX(d/i/_) method avoids this because
+	it doesn't need to type pun or populate a temporary each time.
+*/

@@ -136,6 +136,7 @@
     <ClInclude Include="PrimitiveTypes.hpp" />
     <ClInclude Include="SIMD_Ops.hpp" />
     <ClInclude Include="SIMD_Utils.hpp" />
+    <ClInclude Include="Notes on SIMD API implementation choices.txt" />
     <ClInclude Include="UtilFunctions.hpp" />
   </ItemGroup>
   <ItemGroup>
