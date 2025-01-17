@@ -35,6 +35,9 @@ auto main() -> int {
 	auto res5 = _mm256_mul_epi32(val256, val256_2);
 	auto res6 = SIMD::multiply<i32>(val256, val256_2);
 
+	auto res7 = _mm256_div_epi32(val256, val256_2);
+	auto res8 = SIMD::divide<i32>(val256, val256_2);
+
 	//auto res5 = _mm256_mask_add_epi32(val256, 0x0F, val256, val256_2);
 	//auto res6 = SIMD::maskAdd<i32>(val256, val256_2, 0x0F);
 	//auto res7 = _mm256_mask_sub_epi32(val256, 0x0F, val256, val256_2);
@@ -50,6 +53,8 @@ auto main() -> int {
 	SIMD::print256<i32>(res4);
 	SIMD::print256<i32>(res5);
 	SIMD::print256<i32>(res6);
+	SIMD::print256<i32>(res7);
+	SIMD::print256<i32>(res8);
 	//SIMD::print256<i32>(res5);
 	//SIMD::print256<i32>(res6);
 	//SIMD::print256<i32>(res7);

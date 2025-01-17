@@ -358,6 +358,9 @@ namespace SIMD {
 #endif // __AVX__
 
 #ifdef __AVX2__
+	// works for u8/16, i8/16/32/64, f32/64
+	// works for __m128(i/d/_) and __m256(i/d/_)
+	// partial functionality for u8/16
 	template <typename In, typename Out> requires (SIMDInOut_Type<In, Out>)
 	auto add(const Out& a, const Out& b, bool preferSaturation = false) -> Out {
 		if constexpr (std::same_as<Out, __m128i>) {
@@ -434,6 +437,9 @@ namespace SIMD {
 		}
 	}
 
+	// works for u8/16, i8/16/32/64, f32/64
+	// works for __m128(i/d/_) and __m256(i/d/_)
+	// partial functionality for u8/16
 	template <typename In, typename Out> requires (SIMDInOut_Type<In, Out>)
 	auto subtract(const Out& a, const Out& b, bool preferSaturation = false) -> Out {
 		if constexpr (std::same_as<Out, __m128i>) {
@@ -518,6 +524,9 @@ namespace SIMD {
 		on sub set of elements within (ie, 16 can fit in 128, but if only 10 filled, can just do 10 with mask 0x0000 03FF
 		(ie 0b 0000 0000 0000 0000  0000 0011 1111 1111).
 	*/
+	// works for u8/16, i8/16/32/64, f32/64
+	// works for __m128(i/d/_) and __m256(i/d/_)
+	// partial functionality for u8/16
 	template <typename In, typename Out> requires (SIMDInOut_Type<In, Out>)
 	auto maskAdd(
 		const Out& a,
@@ -600,6 +609,9 @@ namespace SIMD {
 		}
 	}
 
+	// works for u8/16, i8/16/32/64, f32/64
+	// works for __m128(i/d/_) and __m256(i/d/_)
+	// partial functionality for u8/16
 	template <typename In, typename Out> requires (SIMDInOut_Type<In, Out>)
 	auto maskSubtract(
 		const Out& a,
@@ -718,9 +730,10 @@ namespace SIMD {
 	// hell could even store em in a std::array for only 32 total copies.
 
 	// this method with ignore overflow because of the above
+	// works for i16/32, f32/64
+	// works for __m128(i/d/_) and __m256(i/d/_)
 	template <typename In, typename Out> requires (SIMDInOut_Type<In, Out>)
-	auto multiply(const Out& a, const Out& b)
-	-> Out {
+	auto multiply(const Out& a, const Out& b) -> Out {
 		if constexpr (std::same_as<Out, __m128i>) {
 			if constexpr (std::same_as<In, i16>) {
 				return _mm_mullo_epi16(a, b);
@@ -758,6 +771,81 @@ namespace SIMD {
 		}
 	}
 #endif // __AVX2__
+
+#ifdef __AVX__
+	// works for u8/16/32/64, i8/16/32/64, f32/64
+	// works for __m128(i/d/_) and __m256(i/d/_)
+	template <typename In, typename Out> requires (SIMDInOut_Type<In, Out>)
+	auto divide(const Out& a, const Out& b) -> Out {
+		if constexpr (std::same_as<Out, __m128i>) {
+			if constexpr (std::same_as<In, u8>) {
+				return _mm_div_epu8(a, b);
+			}
+			else if constexpr (std::same_as<In, i8>) {
+				return _mm_div_epi8(a, b);
+			}
+			else if constexpr (std::same_as<In, u16>) {
+				return _mm_div_epu16(a, b);
+			}
+			else if constexpr (std::same_as<In, i16>) {
+				return _mm_div_epi16(a, b);
+			}
+			else if constexpr (std::same_as<In, u32>) {
+				return _mm_div_epu32(a, b);
+			}
+			else if constexpr (std::same_as<In, i32>) {
+				return _mm_div_epi32(a, b);
+			}
+			else if constexpr (std::same_as<In, u64>) {
+				return _mm_div_epu64(a, b);
+			}
+			else if constexpr (std::same_as<In, i64>) {
+				return _mm_div_epi64(a, b);
+			}
+		}
+		else if constexpr (std::same_as<Out, __m128> && std::same_as<In, f32>) {
+			return _mm_div_ps(a, b);
+		}
+		else if constexpr (std::same_as<Out, __m128d> && std::same_as<In, f64>) {
+			return _mm_div_pd(a, b);
+		}
+		else if constexpr (std::same_as<Out, __m256i>) {
+			if constexpr (std::same_as<In, u8>) {
+				return _mm256_div_epu8(a, b);
+			}
+			else if constexpr (std::same_as<In, i8>) {
+				return _mm256_div_epi8(a, b);
+			}
+			else if constexpr (std::same_as<In, u16>) {
+				return _mm256_div_epu16(a, b);
+			}
+			else if constexpr (std::same_as<In, i16>) {
+				return _mm256_div_epi16(a, b);
+			}
+			else if constexpr (std::same_as<In, u32>) {
+				return _mm256_div_epu32(a, b);
+			}
+			else if constexpr (std::same_as<In, i32>) {
+				return _mm256_div_epi32(a, b);
+			}
+			else if constexpr (std::same_as<In, u64>) {
+				return _mm256_div_epu64(a, b);
+			}
+			else if constexpr (std::same_as<In, i64>) {
+				return _mm256_div_epi64(a, b);
+			}
+		}
+		else if constexpr (std::same_as<Out, __m256> && std::same_as<In, f32>) {
+			return _mm256_div_ps(a, b);
+		}
+		else if constexpr (std::same_as<Out, __m256d> && std::same_as<In, f64>) {
+			return _mm256_div_pd(a, b);
+		}
+		else {
+			std::runtime_error("Invalid types");
+		}
+	}
+#endif // __AVX__
 
 #ifdef __SSE2__
 	template <typename In, typename Out> requires (SIMDInOut128_Type<In, Out>)
