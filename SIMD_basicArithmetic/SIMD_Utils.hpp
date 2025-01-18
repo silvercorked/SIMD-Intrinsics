@@ -113,7 +113,7 @@ namespace SIMD {
 			}
 		}
 		else {
-			std::runtime_error("Invalid Types");
+			throw std::runtime_error("Invalid Types");
 		}
 	}
 #endif
@@ -154,7 +154,7 @@ namespace SIMD {
 			);
 		}
 		else {
-			std::runtime_error("Invalid Output Template Type. Only __m256i is supported.");
+			throw std::runtime_error("Invalid Output Template Type. Only __m256i is supported.");
 		}
 	}
 
@@ -177,7 +177,7 @@ namespace SIMD {
 			);
 		}
 		else {
-			std::runtime_error("Invalid Output Template Type. Only __m256i is supported.");
+			throw std::runtime_error("Invalid Output Template Type. Only __m256i is supported.");
 		}
 	}
 
@@ -202,7 +202,7 @@ namespace SIMD {
 			return _mm256_set_epi32(a, b, c, d, e, f, g, h);
 		}
 		else {
-			std::runtime_error("Invalid Types");
+			throw std::runtime_error("Invalid Types");
 		}
 	}
 
@@ -225,7 +225,7 @@ namespace SIMD {
 			return _mm256_set_epi64(a, b, c, d);
 		}
 		else {
-			std::runtime_error("Invalid Types");
+			throw std::runtime_error("Invalid Types");
 		}
 	}
 #endif // __AVX__
@@ -266,7 +266,7 @@ namespace SIMD {
 			return _mm256_set1_pd(a);
 		}
 		else {
-			std::runtime_error("Invalid Types.");
+			throw std::runtime_error("Invalid Types.");
 		}
 	}
 #endif __AVX__
@@ -274,7 +274,7 @@ namespace SIMD {
 #ifdef __AVX__
 	template <typename In> requires (SIMDIn_Type<In>)
 	auto fill256(
-		In* a
+		const In* a
 	) -> std::conditional_t<std::same_as<f32, In>, __m256, std::conditional_t<std::same_as<f64, In>, __m256d, __m256i>> {
 		if constexpr (std::same_as<f32, In>) {
 			return _mm256_loadu_ps(a);
@@ -286,7 +286,7 @@ namespace SIMD {
 			return _mm256_loadu_si256((__m256i*) a);
 		}
 		else {
-			std::runtime_error("Invalid Types");
+			throw std::runtime_error("Invalid Types");
 		}
 	}
 
@@ -313,7 +313,7 @@ namespace SIMD {
 	*/
 	template <typename In> requires (SIMDIn_Type<In>)
 	auto fill256(
-		In* a, size_t size, In fallback = 0
+		const In* a, size_t size, In fallback = 0
 	) -> std::conditional_t<std::same_as<f32, In>, __m256, std::conditional_t<std::same_as<f64, In>, __m256d, __m256i>> {
 		constexpr const auto numElems = 256 / sizeofbits(In);
 		std::array<In, numElems> vals;
@@ -756,7 +756,7 @@ namespace SIMD {
 				return _mm256_mullo_epi32(a, b);
 			}
 			else if constexpr (std::same_as<In, i64>) {
-				std::runtime_error("Invalid types");
+				throw std::runtime_error("Invalid types");
 				// return _mm256_mullo_epi64(a, b); // AVX512
 			}
 		}
@@ -767,7 +767,7 @@ namespace SIMD {
 			return _mm256_mul_pd(a, b);
 		}
 		else {
-			std::runtime_error("Invalid types");
+			throw std::runtime_error("Invalid types");
 		}
 	}
 #endif // __AVX2__
@@ -842,7 +842,7 @@ namespace SIMD {
 			return _mm256_div_pd(a, b);
 		}
 		else {
-			std::runtime_error("Invalid types");
+			throw std::runtime_error("Invalid types");
 		}
 	}
 #endif // __AVX__
