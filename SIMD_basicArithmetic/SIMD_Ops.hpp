@@ -11,16 +11,19 @@
 #include <tmmintrin.h>
 #include <emmintrin.h>
 #include <immintrin.h>
+#include <utility>
 
 #include <vector>
 
 namespace SIMD {
-	enum struct Ops: int {
-		ADD, // add
-		SUBTRACT, // subtract
-		MULTIPLY, // multiply
-		DIVIDE // divide
+	enum struct Ops: char {
+		ADD = '+', // add
+		SUBTRACT = '-', // subtract
+		MULTIPLY = '*', // multiply
+		DIVIDE = '/' // divide
 	};
+	template <char T>
+	concept OpsOptions = T == '+' || T == '-' || T == '*' || T == '/';
 
 	// due to lack of support for more types than these in a number of spaces, ill just use these for the moment.
 	template <typename T>
@@ -63,9 +66,11 @@ namespace SIMD {
 			}
 		}
 
-		template <Ops OP>
+		template <char OP> requires (OpsOptions<OP>)
 		auto map(T nVal) -> VecOps<T>& {
-			if (OP == Ops::DIVIDE && nVal == 0) {
+			if (OP == std::to_underlying(Ops::DIVIDE) && nVal == 0) { // not sure how i feel about std::to_underlying.
+				// on one hand, i think it is probably easier to follow that '/', which is kinda a random constant.
+				// on the other hand, it's kinda long for what i'm trying to do. I suppose i could pun it for size
 				throw std::runtime_error("illegal argument. Cannot divide by zero!");
 			}
 			const auto valVec = SIMD::fill256<T>(nVal);
@@ -76,7 +81,9 @@ namespace SIMD {
 		}
 
 		// only supporting additive and multiplicative reductions since order doesn't matter
-		template <Ops OP> requires (OP == Ops::ADD || OP == Ops::MULTIPLY)
+		template <char OP> requires (OpsOptions<OP> &&
+			(OP == std::to_underlying(Ops::ADD) || OP == std::to_underlying(Ops::MULTIPLY))
+		)
 		auto reduce() {
 			if (this->hasReduced)
 				return this->result(); // avoid consequences of recomputing and just give result
@@ -88,10 +95,10 @@ namespace SIMD {
 					// but will affect result unless they're dealt with
 					T* asTs = pun_cast<T*>(&(this->data[currSize - 1]));
 					for (auto i = remainder; i < this->amountInBigType; i++) {
-						if constexpr (OP == Ops::ADD) {
+						if constexpr (OP == std::to_underlying(Ops::ADD)) {
 							asTs[i] = 0; // won't affect anything if added or subtracted
 						}
-						else if constexpr (OP == Ops::MULTIPLY) {
+						else if constexpr (OP == std::to_underlying(Ops::MULTIPLY)) {
 							asTs[i] = 1; // won't affect anything if multiplied or divided
 						}
 						else {
@@ -157,36 +164,36 @@ namespace SIMD {
 		}
 
 	private:
-		template <Ops OP>
+		template <char OP> requires (OpsOptions<OP>)
 		auto applyOPSIMD(const BigType& a, const BigType& b) -> BigType {
-			if constexpr (OP == Ops::ADD) {
+			if constexpr (OP == std::to_underlying(Ops::ADD)) {
 				return SIMD::add<T>(a, b);
 			}
-			else if constexpr (OP == Ops::SUBTRACT) {
+			else if constexpr (OP == std::to_underlying(Ops::SUBTRACT)) {
 				return SIMD::subtract<T>(a, b);
 			}
-			else if constexpr (OP == Ops::MULTIPLY) {
+			else if constexpr (OP == std::to_underlying(Ops::MULTIPLY)) {
 				return SIMD::multiply<T>(a, b);
 			}
-			else if constexpr (OP == Ops::DIVIDE) {
+			else if constexpr (OP == std::to_underlying(Ops::DIVIDE)) {
 				return SIMD::divide<T>(a, b);
 			}
 			else {
 				throw std::runtime_error("Unsupported Operation Requested");
 			}
 		}
-		template <Ops OP>
+		template <char OP> requires (OpsOptions<OP>)
 		auto applyOP(const T a, const T b) -> T {
-			if constexpr (OP == Ops::ADD) {
+			if constexpr (OP == std::to_underlying(Ops::ADD)) {
 				return a + b;
 			}
-			else if constexpr (OP == Ops::SUBTRACT) {
+			else if constexpr (OP == std::to_underlying(Ops::SUBTRACT)) {
 				return a - b;
 			}
-			else if constexpr (OP == Ops::MULTIPLY) {
+			else if constexpr (OP == std::to_underlying(Ops::MULTIPLY)) {
 				return a - b;
 			}
-			else if constexpr (OP == Ops::DIVIDE) {
+			else if constexpr (OP == std::to_underlying(Ops::DIVIDE)) {
 				return a / b;
 			}
 			else {
@@ -194,5 +201,4 @@ namespace SIMD {
 			}
 		}
 	};
-
 };

@@ -75,9 +75,9 @@ auto main() -> int {
 
 	auto vecTestData = std::vector<i32>(vals3.begin(), vals3.end());
 	auto operation = SIMD::VecOps(vecTestData);
-	operation.map<SIMD::Ops::ADD>(5).map<SIMD::Ops::SUBTRACT>(3);
+	operation.map<'+'>(5).map<'-'>(3);
 	auto vecRes = operation.result();
-	auto vecRes1 = operation.reduce<SIMD::Ops::ADD>();
+	auto vecRes1 = operation.reduce<'+'>();
 
 	std::cout << "printing result of vec op\n";
 	for (auto i = 0; i < vecRes1.size(); i++) {
