@@ -113,7 +113,7 @@ namespace SIMD {
 			}
 		}
 		else {
-			throw std::runtime_error("Invalid Types");
+			throw std::unreachable(); // unsupported type
 		}
 	}
 #endif
@@ -154,7 +154,7 @@ namespace SIMD {
 			);
 		}
 		else {
-			throw std::runtime_error("Invalid Output Template Type. Only __m256i is supported.");
+			throw std::unreachable(); // unsupported type
 		}
 	}
 
@@ -177,7 +177,7 @@ namespace SIMD {
 			);
 		}
 		else {
-			throw std::runtime_error("Invalid Output Template Type. Only __m256i is supported.");
+			throw std::unreachable(); // unsupported type
 		}
 	}
 
@@ -202,7 +202,7 @@ namespace SIMD {
 			return _mm256_set_epi32(a, b, c, d, e, f, g, h);
 		}
 		else {
-			throw std::runtime_error("Invalid Types");
+			throw std::unreachable(); // unsupported type
 		}
 	}
 
@@ -225,7 +225,7 @@ namespace SIMD {
 			return _mm256_set_epi64(a, b, c, d);
 		}
 		else {
-			throw std::runtime_error("Invalid Types");
+			throw std::unreachable(); // unsupported type
 		}
 	}
 #endif // __AVX__
@@ -266,7 +266,7 @@ namespace SIMD {
 			return _mm256_set1_pd(a);
 		}
 		else {
-			throw std::runtime_error("Invalid Types.");
+			throw std::unreachable(); // unsupported type
 		}
 	}
 #endif __AVX__
@@ -286,7 +286,7 @@ namespace SIMD {
 			return _mm256_loadu_si256((__m256i*) a);
 		}
 		else {
-			throw std::runtime_error("Invalid Types");
+			throw std::unreachable(); // unsupported type
 		}
 	}
 
@@ -756,7 +756,7 @@ namespace SIMD {
 				return _mm256_mullo_epi32(a, b);
 			}
 			else if constexpr (std::same_as<In, i64>) {
-				throw std::runtime_error("Invalid types");
+				throw std::unreachable(); // unsupported type
 				// return _mm256_mullo_epi64(a, b); // AVX512
 			}
 		}
@@ -767,7 +767,7 @@ namespace SIMD {
 			return _mm256_mul_pd(a, b);
 		}
 		else {
-			throw std::runtime_error("Invalid types");
+			throw std::unreachable(); // unsupported type
 		}
 	}
 #endif // __AVX2__
@@ -842,7 +842,7 @@ namespace SIMD {
 			return _mm256_div_pd(a, b);
 		}
 		else {
-			throw std::runtime_error("Invalid types");
+			throw std::unreachable(); // unsupported type
 		}
 	}
 #endif // __AVX__

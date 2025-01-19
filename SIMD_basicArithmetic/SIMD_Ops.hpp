@@ -31,9 +31,12 @@ namespace SIMD {
 
 	template <I32_or_F32 T>
 	class VecOps {
-		using BigType = std::conditional_t<
-			std::same_as<T, i32>, __m256i, std::conditional_t<
-			std::same_as<T, f32>, __m256, std::false_type>
+		using BigType = std::conditional_t<std::same_as<T, i32>,
+			__m256i,
+			std::conditional_t<std::same_as<T, f32>,
+				__m256,
+				std::false_type
+			>
 		>;
 
 		std::vector<BigType> data;
@@ -47,7 +50,7 @@ namespace SIMD {
 			hasReduced(false)
 		{
 			if (this->originalSize == 0) {
-				throw std::runtime_error("input vector must have data");
+				throw std::runtime_error("input vector must have data. size can't be zero.");
 			}
 			const auto dataSize = this->originalSize / this->amountInBigType;
 			const auto remainder = input.size() % this->amountInBigType;
@@ -102,7 +105,7 @@ namespace SIMD {
 							asTs[i] = 1; // won't affect anything if multiplied or divided
 						}
 						else {
-							throw std::runtime_error("invalid operation");
+							throw std::unreachable(); // unsupported opeartion
 						}
 					}
 				}
@@ -179,7 +182,7 @@ namespace SIMD {
 				return SIMD::divide<T>(a, b);
 			}
 			else {
-				throw std::runtime_error("Unsupported Operation Requested");
+				throw std::unreachable(); // unsupported operation
 			}
 		}
 		template <char OP> requires (OpsOptions<OP>)
@@ -197,7 +200,7 @@ namespace SIMD {
 				return a / b;
 			}
 			else {
-				throw std::runtime_error("Unsupported Operation Requested");
+				throw std::unreachable(); // unsupported operation
 			}
 		}
 	};
